@@ -1,0 +1,34 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "",
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "includePath": [
+              "${workspaceFolder}/**",
+              "/home/m1ch1/software/arduino-1.8.10/hardware/arduino/avr/cores/arduino",
+              "/home/m1ch1/software/arduino-1.8.10/hardware/tools/avr/avr/include/",
+              "/home/m1ch1/software/arduino-1.8.10/hardware/arduino/avr/variants/standard/",
+              "/home/m1ch1/software/arduino-1.8.10/libraries/Servo/src",
+              "/home/m1ch1/software/arduino-1.8.10/libraries/ros_lib"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14"
+        },
+        {
+            "name": "Linux",
+            "includePath": [
+                "/home/m1ch1/software/arduino-1.8.10/tools/**",
+                "/home/m1ch1/software/arduino-1.8.10/hardware/arduino/avr/**"
+            ],
+            "forcedInclude": [
+                "/home/m1ch1/software/arduino-1.8.10/hardware/arduino/avr/cores/arduino/Arduino.h"
+            ]
+        }
+    ],
+    "version": 4
+}
