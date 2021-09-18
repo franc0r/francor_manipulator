@@ -17,17 +17,21 @@ FrancorManipulator_node::FrancorManipulator_node()
   // privNh.param<bool>(   "bool_val"   ,    bool_val  ,   true);
 
   // //init publisher
+  _pub_pos_axis0       = _nh.advertise<std_msgs::UInt16>( "manipulator/set_pos/axis0", 1);
   _pub_pos_axis1       = _nh.advertise<std_msgs::UInt16>( "manipulator/set_pos/axis1", 1);
   _pub_pos_axis2       = _nh.advertise<std_msgs::UInt16>( "manipulator/set_pos/axis2", 1);
-  _pub_pos_head_pan    = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_pam/pos", 1);
+  _pub_head_gripper    = _nh.advertise<std_msgs::UInt16>( "manipulator/set_pos/gripper", 1);
+  _pub_pos_head_pan    = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_pan/pos", 1);
   _pub_pos_head_tilt   = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_tilt/pos", 1);
   _pub_ros_head_roll   = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_roll/pos", 1);
-  _pub_speed_head_pan  = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_pam/speed", 1);
+  _pub_speed_head_pan  = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_pan/speed", 1);
   _pub_speed_head_tilt = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_tilt/speed", 1);
   _pub_speed_head_roll = _nh.advertise<std_msgs::Float64>("servo_lx16a/arm_roll/speed", 1);
+  _pub_pos             = _nh.advertise<francor_msgs::ManipulatorCmd>("manipulator/pos", 1);
   _pub_status          = _nh.advertise<std_msgs::String>( "manipulator/status", 1);
 
   //inti subscriber
+  _sub_pos_axis0                 = _nh.subscribe("manipulator/pos/axis0",     1, &FrancorManipulator_node::subPosAxis0_callback, this);
   _sub_pos_axis1                 = _nh.subscribe("manipulator/pos/axis1",     1, &FrancorManipulator_node::subPosAxis1_callback, this);
   _sub_pos_axis2                 = _nh.subscribe("manipulator/pos/axis2",     1, &FrancorManipulator_node::subPosAxis2_callback, this);
   _sub_speed_manipulator_axis    = _nh.subscribe("manipulator/speed/axis",    1, &FrancorManipulator_node::subSpeedManipulatorAxis_callback, this);
@@ -59,36 +63,108 @@ void FrancorManipulator_node::run()
 
 void FrancorManipulator_node::loop_callback(const ros::TimerEvent& e)
 {
+  // ROS_ERROR("Got man pos: %s", this->got_manipulator_pos() ? "true" : "false");
+
+  if((ros::Time::now() - _timeLastPosAxix0).toSec() > 1.0)
+  {
+    _got_pos_axis0 = false;
+  }
+  if((ros::Time::now() - _timeLastPosAxix1).toSec() > 1.0)
+  {
+    _got_pos_axis1 = false;
+  }
+  if((ros::Time::now() - _timeLastPosAxix2).toSec() > 1.0)
+  {
+    _got_pos_axis2 = false;
+  }
+
   if(this->got_manipulator_pos() && _mode == AXIS)
   {
     //base
+    _desired_angle_axis0 += _angle_increment_max * _curr_manip_cmd.joint_0;
     _desired_angle_axis1 += _angle_increment_max * _curr_manip_cmd.joint_1;
     _desired_angle_axis2 += _angle_increment_max * _curr_manip_cmd.joint_2;
 
-    _desired_angle_axis1 = constrain(_desired_angle_axis1, _SERVO_RAD_MIN, _SERVO_RAD_MAX);
-    _desired_angle_axis2 = constrain(_desired_angle_axis2, _SERVO_RAD_MIN, _SERVO_RAD_MAX);
+    _desired_angle_axis0 = constrain(_desired_angle_axis0, _SERVO_RAD_MIN, _SERVO_RAD_MAX);
+    _desired_angle_axis1 = constrain(_desired_angle_axis1, 0, _SERVO_RAD_MAX);
+    _desired_angle_axis2 = constrain(_desired_angle_axis2, _SERVO_RAD_MIN, 1.52);
 
     std_msgs::UInt16 msg;
+
+    msg.data = this->rad_to_servo_ms(_desired_angle_axis0);
+    // if(msg.data < 1400) //todo  doooo beeeettteeerrrS
+    // {
+    //   msg.data = 1400;
+    // }
+    _pub_pos_axis0.publish(msg);
     msg.data = this->rad_to_servo_ms(_desired_angle_axis1);
     _pub_pos_axis1.publish(msg);
     msg.data = this->rad_to_servo_ms(_desired_angle_axis2);
     _pub_pos_axis2.publish(msg);
-    //head
-    std_msgs::Float64 msg_servo;
-    msg_servo.data = _curr_manip_cmd.head_pan;
-    _pub_speed_head_pan.publish(msg_servo);
-    msg_servo.data = _curr_manip_cmd.head_tilt;
-    _pub_speed_head_tilt.publish(msg_servo);
-    msg_servo.data = _curr_manip_cmd.head_roll;
-    _pub_speed_head_roll.publish(msg_servo);
+    
+    
+    francor_msgs::ManipulatorCmd pos;
+    pos.joint_0 = _desired_angle_axis0;
+    pos.joint_1 = _desired_angle_axis1;
+    pos.joint_2 = _desired_angle_axis2;
+
+    _pub_pos.publish(pos);
   }
 
+  if(this->got_manipulator_pos() && _mode == INVERSE)
+  {
+
+  }
+
+
+  //head
+  //gripper
+  _desired_pos_gripper += static_cast<uint16_t>(std::round(_ms_gripper_increment_max * _curr_manip_cmd.head_gripper));
+  _desired_pos_gripper = static_cast<uint16_t>(constrain(_desired_pos_gripper, 500.0, 2140.0));
+  std_msgs::UInt16 msg_gripper;
+  msg_gripper.data = _desired_pos_gripper;
+  _pub_head_gripper.publish(msg_gripper);
+  //pan tilt roll
+  std_msgs::Float64 msg_servo;
+  msg_servo.data = _curr_manip_cmd.head_pan;
+  _pub_speed_head_pan.publish(msg_servo);
+  msg_servo.data = _curr_manip_cmd.head_tilt;
+  _pub_speed_head_tilt.publish(msg_servo);
+  msg_servo.data = _curr_manip_cmd.head_roll;
+  _pub_speed_head_roll.publish(msg_servo);
+
+
+}
+
+
+void FrancorManipulator_node::subPosAxis0_callback(const std_msgs::UInt16& msg) 
+{
+  if(msg.data == 65535)
+  {//servo has no power
+    _got_pos_axis0 = false;
+    return;
+  }
+  _timeLastPosAxix0 = ros::Time::now();
+
+  _current_angle_axis0 = this->servo_ms_to_rad(msg.data);
+  if(!_got_pos_axis0)// || (std::abs(_desired_angle_axis0 - _current_angle_axis0) > _SERVO_SAVETY_OFFSET && _mode == AXIS))
+  {
+    _desired_angle_axis0 = _current_angle_axis0;
+  }
+  _got_pos_axis0 = true;
 }
 
 void FrancorManipulator_node::subPosAxis1_callback(const std_msgs::UInt16& msg) 
 {
+  if(msg.data == 65535)
+  {//servo has no power
+    _got_pos_axis1 = false;
+    return;
+  }
+  _timeLastPosAxix1 = ros::Time::now();
+
   _current_angle_axis1 = this->servo_ms_to_rad(msg.data);
-  if(!_got_pos_axis1)
+  if(!_got_pos_axis1)// || (std::abs(_desired_angle_axis1 - _current_angle_axis1) > _SERVO_SAVETY_OFFSET && _mode == AXIS))
   {
     _desired_angle_axis1 = _current_angle_axis1;
   }
@@ -97,8 +173,15 @@ void FrancorManipulator_node::subPosAxis1_callback(const std_msgs::UInt16& msg)
 
 void FrancorManipulator_node::subPosAxis2_callback(const std_msgs::UInt16& msg) 
 {
+  if(msg.data == 65535)
+  {//servo has no power
+    _got_pos_axis2 = false;
+    return;
+  }
+  _timeLastPosAxix2 = ros::Time::now();
+
   _current_angle_axis2 = this->servo_ms_to_rad(msg.data);
-  if(!_got_pos_axis2)
+  if(!_got_pos_axis2)// || (std::abs(_desired_angle_axis1 - _current_angle_axis1) > _SERVO_SAVETY_OFFSET && _mode == AXIS))
   {
     _desired_angle_axis2 = _current_angle_axis2;
   }

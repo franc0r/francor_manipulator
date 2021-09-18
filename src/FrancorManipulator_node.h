@@ -2,11 +2,12 @@
 #ifndef FRANCORMANIPULATOR_NODE_H_
 #define FRANCORMANIPULATOR_NODE_H_
 
-
-#include <francor_base/angle.h>
+#include <iostream>
 
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
+
+#include <francor_base/angle.h>
 
 #include <std_msgs/UInt16.h>
 #include <std_msgs/Float64.h>
@@ -18,6 +19,7 @@
 
 //francor
 #include <francor_msgs/ManipulatorCmd.h>
+
 
 class FrancorManipulator_node
 {
@@ -36,7 +38,8 @@ public:
 
   enum ENUM_MODE{
     AXIS = 0,
-    INVERSE
+    INVERSE,
+    HOMING
   };
 
 private: //functions
@@ -55,7 +58,7 @@ private: //functions
 
   bool got_manipulator_pos()
   {
-    return _got_pos_axis1 && _got_pos_axis2;
+    return _got_pos_axis1 && _got_pos_axis2 && _got_pos_axis0;
   }
 
   /**
@@ -71,6 +74,7 @@ private: //functions
   void loop_callback(const ros::TimerEvent& e);
 
   //topics
+  void subPosAxis0_callback(const std_msgs::UInt16& msg);
   void subPosAxis1_callback(const std_msgs::UInt16& msg);
   void subPosAxis2_callback(const std_msgs::UInt16& msg);
   void subSpeedManipulatorAxis_callback(const francor_msgs::ManipulatorCmd& msg);
@@ -99,9 +103,11 @@ private: //dataelements
   ros::NodeHandle _nh;
 
   //base
+  ros::Publisher _pub_pos_axis0;
   ros::Publisher _pub_pos_axis1;
   ros::Publisher _pub_pos_axis2;
   //head
+  ros::Publisher _pub_head_gripper;
   ros::Publisher _pub_pos_head_pan;
   ros::Publisher _pub_pos_head_tilt;
   ros::Publisher _pub_ros_head_roll;
@@ -109,9 +115,12 @@ private: //dataelements
   ros::Publisher _pub_speed_head_tilt;
   ros::Publisher _pub_speed_head_roll;
 
+  ros::Publisher _pub_pos;
+
   ros::Publisher _pub_status;
 
   //return from base
+  ros::Subscriber _sub_pos_axis0;
   ros::Subscriber _sub_pos_axis1;
   ros::Subscriber _sub_pos_axis2;
   //sub arm cmd
@@ -128,23 +137,37 @@ private: //dataelements
 
   ENUM_MODE _mode = AXIS;
 
+  francor::base::NormalizedAngleExtended _desired_angle_axis0;
   francor::base::NormalizedAngleExtended _desired_angle_axis1;
   francor::base::NormalizedAngleExtended _desired_angle_axis2;
 
+  francor::base::NormalizedAngleExtended _current_angle_axis0;
   francor::base::NormalizedAngleExtended _current_angle_axis1;
   francor::base::NormalizedAngleExtended _current_angle_axis2;
 
   const double _angle_increment_max = 0.008;
 
+  bool _got_pos_axis0 = false;
   bool _got_pos_axis1 = false;
   bool _got_pos_axis2 = false;
+
+  uint16_t _desired_pos_gripper = 1500;
+  const double _ms_gripper_increment_max = 30.0;
 
   francor_msgs::ManipulatorCmd _curr_manip_cmd;
 
   ros::Timer _loopTimer;
 
+  ros::Time _timeLastPosAxix0;
+  ros::Time _timeLastPosAxix1;
+  ros::Time _timeLastPosAxix2;
+  
+
   static constexpr double _SERVO_RAD_MIN = -2.61799;
   static constexpr double _SERVO_RAD_MAX = 2.61799;
+
+  static constexpr double _SERVO_SAVETY_OFFSET = 0.4;
+
 };
 
 #endif  //FRANCORMANIPULATOR_NODE_H_
