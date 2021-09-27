@@ -119,7 +119,7 @@ void FrancorManipulator_node::loop_callback(const ros::TimerEvent& e)
 
   //head
   //gripper
-  _desired_pos_gripper += static_cast<uint16_t>(std::round(_ms_gripper_increment_max * _curr_manip_cmd.head_gripper));
+  _desired_pos_gripper += static_cast<int16_t>(std::round(_ms_gripper_increment_max * _curr_manip_cmd.head_gripper));
   _desired_pos_gripper = static_cast<uint16_t>(constrain(_desired_pos_gripper, 500.0, 2140.0));
   std_msgs::UInt16 msg_gripper;
   msg_gripper.data = _desired_pos_gripper;
