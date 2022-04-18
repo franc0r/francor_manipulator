@@ -6,15 +6,35 @@ FrancorManipulator_node::FrancorManipulator_node()
   //rosParam
   ros::NodeHandle privNh("~");
   // std::string string_val;
-  // double double_val;
+  double axix0_home;
+  double axis1_home;
+  double axis2_home;
+  double axis0_active;
+  double axis1_active;
+  double axis2_active;
   // int int_val;
   // bool bool_val;
 
 
   // privNh.param(         "string_val" ,    string_val,   std::string("string"));
-  // privNh.param<double>( "double_val" ,    double_val,   100.0);
+  privNh.param<double>( "axix0_home" ,      axix0_home,   100.0);
+  privNh.param<double>( "axis1_home" ,      axis1_home,   100.0);
+  privNh.param<double>( "axis2_home" ,      axis2_home,   100.0);
+  privNh.param<double>( "axis0_active" ,    axis0_active,   100.0);
+  privNh.param<double>( "axis1_active" ,    axis1_active,   100.0);
+  privNh.param<double>( "axis2_active" ,    axis2_active,   100.0);
+
+
   // privNh.param<int>(    "int_val"    ,    int_val   ,   1.0);
   // privNh.param<bool>(   "bool_val"   ,    bool_val  ,   true);
+
+  _axix0_home     = axix0_home;
+  _axis1_home     = axis1_home;
+  _axis2_home     = axis2_home;
+  _axis0_active   = axis0_active;
+  _axis1_active   = axis1_active;
+  _axis2_active   = axis2_active;
+
 
   // //init publisher
   _pub_pos_axis0       = _nh.advertise<std_msgs::UInt16>( "manipulator/set_pos/axis0", 1);
@@ -77,6 +97,18 @@ void FrancorManipulator_node::loop_callback(const ros::TimerEvent& e)
   {
     _got_pos_axis2 = false;
   }
+
+  if(this->got_manipulator_pos() && _mode == HOMING)
+  {
+    return;
+  }
+
+
+  if(this->got_manipulator_pos() && _mode == ACTIVATING)
+  {
+    return;
+  }
+
 
   if(this->got_manipulator_pos() && _mode == AXIS)
   {
@@ -219,12 +251,16 @@ bool FrancorManipulator_node::srv_set_mode_inverse(std_srvs::Empty::Request& req
 
 bool FrancorManipulator_node::srv_set_stand_by(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res) 
 {
-  
+  ROS_ERROR("SET MODE STANDBY");
+  _mode = HOMING;
+  return true;
 }
 
 bool FrancorManipulator_node::srv_set_active(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res) 
 {
-  
+  ROS_ERROR("SET MODE ACTIVE");
+  _mode = ACTIVATING;
+  return true;
 }
 
 

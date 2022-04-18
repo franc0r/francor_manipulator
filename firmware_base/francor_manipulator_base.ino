@@ -1,6 +1,8 @@
 #include "Arduino.h"
 #include <ros.h>
 
+#include<stdlib.h>
+
 #include <Servo.h>
 #include <std_msgs/UInt16.h>
 // #include <std_msgs/String.h>
@@ -36,7 +38,14 @@ bool servo_1_ok = false;
 bool servo_2_ok = false;
 // bool servo_3_ok = true;  //true for now ... servo not used for now
 
+uint16_t last_pos0 = 0;
+uint16_t last_pos1 = 0;
+uint16_t last_pos2 = 0;
+
+
 bool servo_init_rdy = false;
+
+
 
 // // -- functions --
 // void log(const char* msg)
@@ -45,42 +54,36 @@ bool servo_init_rdy = false;
 //   // pub_log.publish(&log_msg);
 // }
 
+void checkDetachServos(const uint16_t msg);
+
 void sub_axis0_callback(const std_msgs::UInt16& msg)
 {
+  checkDetachServos(msg.data);
   if(!servo_0_ok)
     return;
   uint16_t val = constrain(msg.data, SERVO1_US_MIN, SERVO1_US_MAX);
-  // if(abs(val - pos_axis0.data) < SERVO_DIFF_MAX)
-  {
-    servo_axis0.writeMicroseconds(val);
-  }
+  last_pos0 = val;
+  servo_axis0.writeMicroseconds(val);
 }
 
 void sub_axis1_callback(const std_msgs::UInt16& msg)
 {
+  checkDetachServos(msg.data);
   if(!servo_1_ok)
     return;
   uint16_t val = constrain(msg.data, SERVO1_US_MIN, SERVO1_US_MAX);
-  // if(abs(val - pos_axis1.data) < SERVO_DIFF_MAX)
-  {
-    servo_axis1.writeMicroseconds(val);
-  }
-  // digitalWrite(13, HIGH-digitalRead(13));
-  // log("got pos data");
-
-  // servo.writeMicroseconds(msg.data);
+  last_pos1 = val;
+  servo_axis1.writeMicroseconds(val);
 }
 
 void sub_axis2_callback(const std_msgs::UInt16& msg)
 {
+  checkDetachServos(msg.data);
   if(!servo_2_ok)
     return;
-  //todo fit for servo2
   uint16_t val = constrain(msg.data, SERVO1_US_MIN, SERVO1_US_MAX);
-  // if(abs(val - pos_axis2.data) < SERVO_DIFF_MAX)
-  {
-    servo_axis2.writeMicroseconds(val);
-  }
+  last_pos2 = val;
+  servo_axis2.writeMicroseconds(val);
 }
 
 void sub_gripper_callback(const std_msgs::UInt16& msg)
@@ -115,7 +118,10 @@ uint16_t servo2_ain_to_ms(const uint16_t ain)
   return map(ain, SERVO1_ANALOG_MIN, SERVO1_ANALOG_MAX, SERVO1_US_MIN, SERVO1_US_MAX);
 }
 
-bool initServos()
+int g_cnt = 0;
+bool g_servos_rdy = false;
+
+void initServos()
 {
   //init servo ... set to actual pos
   uint16_t pos0 = analogRead(0);
@@ -130,6 +136,38 @@ bool initServos()
   pos2 = servo2_ain_to_ms(pos2);
   servo_axis2.attach(5);
   servo_axis2.writeMicroseconds(pos2);
+}
+
+void reinitServos()
+{
+  servo_axis0.attach(12);
+  servo_axis0.writeMicroseconds(last_pos0);
+  servo_axis1.attach(9);
+  servo_axis1.writeMicroseconds(last_pos1);
+  servo_axis2.attach(5);
+  servo_axis2.writeMicroseconds(last_pos2);
+}
+
+void detachServos(const bool servos_rdy)
+{
+  g_servos_rdy = servos_rdy;
+  servo_axis0.detach();
+  servo_axis1.detach();
+  servo_axis2.detach();
+}
+
+void checkDetachServos(const uint16_t msg)
+{
+  if(msg == 0) // 0 detach
+  {
+    detachServos(true);
+  }
+
+  if(msg == 1) // 1 reatach
+  {
+    reinitServos(); 
+  }
+
 }
 
 void setup()
@@ -175,8 +213,7 @@ void setup()
   nh.subscribe(sub_pos_gripper);
 }
 
-int g_cnt = 0;
-bool g_servos_rdy = false;
+
 
 
 void loop()
@@ -190,11 +227,7 @@ void loop()
 
   if(!servo_2_ok || !servo_1_ok || !servo_2_ok)
   {
-    g_servos_rdy = false;
-    servo_axis0.detach();
-    servo_axis1.detach();
-    servo_axis2.detach();
-
+    detachServos(false);
   }
 
   if(servo_0_ok && servo_1_ok && servo_2_ok && !g_servos_rdy)

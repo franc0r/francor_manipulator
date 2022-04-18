@@ -39,7 +39,8 @@ public:
   enum ENUM_MODE{
     AXIS = 0,
     INVERSE,
-    HOMING
+    HOMING,
+    ACTIVATING
   };
 
 private: //functions
@@ -144,6 +145,13 @@ private: //dataelements
   francor::base::NormalizedAngleExtended _current_angle_axis0;
   francor::base::NormalizedAngleExtended _current_angle_axis1;
   francor::base::NormalizedAngleExtended _current_angle_axis2;
+
+  double _axix0_home;
+  double _axis1_home;
+  double _axis2_home;
+  double _axis0_active;
+  double _axis1_active;
+  double _axis2_active;
 
   const double _angle_increment_max = 0.008;
 
