@@ -71,7 +71,7 @@ public:
     uint8_t ret = 1;
     if(!_was_active || abs(_curr_pos - _target_pos) > _MAX_REINIT_DIST)
     {
-      _target_pos = _curr_pos;
+      _target_pos = constrain(_curr_pos, _MAX_POS, _MIN_POS);
       ret = 2;
     }
     //else curr target_pos is ok
@@ -122,16 +122,28 @@ public:
       return;
     }
 
-    _target_pos = pos;
+
+    _target_pos = constrain(pos, _MAX_POS, _MIN_POS);
 
   }
 
   int32_t getPos() const
   {
     if(_has_power)
-      return _curr_pos;
+    {
+      if(_was_active)
+      {
+        return _target_pos;
+      }
+      else
+      {
+        return _curr_pos;
+      }
+    }
     else
-     return -1;
+    {
+      return -1;
+    }
   }
 
   bool isEnabled() const

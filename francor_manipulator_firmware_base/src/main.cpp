@@ -35,7 +35,9 @@ rcl_publisher_t pub_status; //uint8 multiarray
 rcl_publisher_t pub_info;   //string
 
 std_msgs__msg__Int32MultiArray msg_out_axis;
+int32_t data_out_axis[4];
 std_msgs__msg__UInt8MultiArray msg_out_status;
+uint8_t data_out_status[4];
 std_msgs__msg__String          msg_out_info;  
 
 rcl_subscription_t sub_axis; //int32 multiarray
@@ -43,6 +45,7 @@ rcl_subscription_t sub_heartbeat; //uint8
 rcl_subscription_t sub_enable; //uint8
 
 std_msgs__msg__Int32MultiArray msg_in_axis;
+int32_t data_in_axis[4];
 std_msgs__msg__UInt8           msg_in_heartbeat; 
 std_msgs__msg__UInt8           msg_in_enable;
 
@@ -69,25 +72,25 @@ void error_loop() {
 }
 
 
-/**
- * @brief todo check if ok ??? may be hack but fuck it
- * 
- * @param msg 
- * @param size 
- */
-void allocate_msg_int32_multi_array(std_msgs__msg__Int32MultiArray *msg,  const int32_t size)
-{
-  msg->data.data = new int32_t[size];
-  msg->data.size = size;
-  msg->data.capacity = size;
-}
+// /**
+//  * @brief todo check if ok ??? may be hack but fuck it
+//  * 
+//  * @param msg 
+//  * @param size 
+//  */
+// void allocate_msg_int32_multi_array(std_msgs__msg__Int32MultiArray *msg,  const int32_t size)
+// {
+//   msg->data.data = new int32_t[size];
+//   msg->data.size = size;
+//   msg->data.capacity = size * 2;
+// }
 
-void allocate_msg_uint8_multi_array(std_msgs__msg__UInt8MultiArray *msg,  const int32_t size)
-{
-  msg->data.data = new uint8_t[size];
-  msg->data.size = size;
-  msg->data.capacity = size;
-}
+// void allocate_msg_uint8_multi_array(std_msgs__msg__UInt8MultiArray *msg,  const int32_t size)
+// {
+//   msg->data.data = new uint8_t[size];
+//   msg->data.size = size;
+//   msg->data.capacity = size;
+// }
 
 void pub_helper_int32_array(rcl_publisher_t& pub, const int32_t axis0, const int axis1, const int axis2) //todo gripper?
 {
@@ -156,8 +159,9 @@ public:
     uint8_t ret0 = _servo_axis0.enable();
     uint8_t ret1 = _servo_axis1.enable();
     uint8_t ret2 = _servo_axis2.enable();
-
-    return max(ret0, max(ret1, ret2));
+    
+    uint8_t max2 = ret1 > ret2 ? ret1 : ret2;
+    return ret0 > max2 ? ret0 : max2;
   }
 
   void disable()
@@ -241,20 +245,21 @@ void sub_heartbeat_callback(const void* msg)
   //do something with the message
   // pub_helperInt32(pub_axis_0, msg->data);
   //toggling the led
-  // log_info(String("Got heartbeat"));
+  log_info(String("Got heartbeat")); 
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 }
 
 //callback sub_axis
 void sub_axis_callback(const void* msg_in)
 {
+  // log_info(String("SetPos"));
   const std_msgs__msg__Int32MultiArray* msg = (const std_msgs__msg__Int32MultiArray*)msg_in;
   if(msg->data.size != 3)
   {
     log_info(String("Got wrong axis message"));
     return;
   }
-
+  g_man_base.setPos(msg->data.data[0], msg->data.data[1], msg->data.data[2], 1500);
 }
 
 void sub_enable_callback(const void* msg_in)
@@ -268,6 +273,7 @@ void sub_enable_callback(const void* msg_in)
   if(msg->data)
   {
     auto ret = g_man_base.enable();
+    // auto ret = 0;
     if(ret)
     {
       String msg;
@@ -297,7 +303,7 @@ void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
   if (timer != NULL) {
     g_man_base.tick();
 
-    //get pos
+    // get pos
     auto pos = g_man_base.getPos();
     pub_helper_int32_array(pub_axis, pos.axis0, pos.axis1, pos.axis2);
     
@@ -317,7 +323,7 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
   // Configure serial transport
-  Serial.begin(115200);
+  Serial.begin(57600);
   set_microros_serial_transports(Serial);
   delay(2000);
 
@@ -330,14 +336,16 @@ void setup() {
   RCCHECK(rclc_node_init_default(&node, "francor_manipulator_base_node", "", &support));
 
   // //init publishers
-  RCCHECK(rclc_publisher_init_default(&pub_axis, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32MultiArray), "manipulator/pos/axis"));
-  RCCHECK(rclc_publisher_init_default(&pub_status, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8MultiArray), "manipulator/pos/status"));
-  RCCHECK(rclc_publisher_init_default(&pub_info, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String), "manipulator/info"));
+  RCCHECK(rclc_publisher_init_best_effort(&pub_axis, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32MultiArray), "manipulator/pos/axis"));
+  RCCHECK(rclc_publisher_init_best_effort(&pub_status, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8MultiArray), "manipulator/pos/status"));
+  RCCHECK(rclc_publisher_init_best_effort(&pub_info, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String), "manipulator/info"));
 
   //init subscribers
-  RCCHECK(rclc_subscription_init_default(&sub_axis, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32MultiArray), "manipulator/set_pos/axis"));
-  RCCHECK(rclc_subscription_init_default(&sub_heartbeat, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8), "manipulator/heartbeat"));
-  RCCHECK(rclc_subscription_init_default(&sub_enable, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8), "manipulator/enable"));
+  RCCHECK(rclc_subscription_init_best_effort(&sub_axis, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32MultiArray), "manipulator/set_pos/axis"));
+  RCCHECK(rclc_subscription_init_best_effort(&sub_heartbeat, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8), "manipulator/heartbeat"));
+  RCCHECK(rclc_subscription_init_best_effort(&sub_enable, &node, ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt8), "manipulator/enable"));
+  // rclc_subscription_init(rcl_subscription_t *subscription, rcl_node_t *node, const rosidl_message_type_support_t *type_support, const char *topic_name, const rmw_qos_profile_t *qos_profile)
+  // rclc_subscription_init_best_effort(rcl_subscription_t *subscription, rcl_node_t *node, const rosidl_message_type_support_t *type_support, const char *topic_name)
 
   //init services //IMPORTANT NOTE -> Teensy only supports one Service -> second will cause RCCHECK ERROR
   
@@ -355,12 +363,36 @@ void setup() {
   g_man_base.init();
 
   //allocate out msgs
-  allocate_msg_int32_multi_array(&msg_out_axis, 3);
-  allocate_msg_uint8_multi_array(&msg_out_status, 3);
+//   allocate_msg_int32_multi_array(&msg_out_axis, 3);
+//   allocate_msg_uint8_multi_array(&msg_out_status, 3);
+//   allocate_msg_int32_multi_array(&msg_in_axis, 3);
+  msg_out_axis.data.data = data_out_axis;
+  msg_out_axis.data.size = 3;
+  msg_out_axis.data.capacity = 4;
+
+  msg_out_status.data.data = data_out_status;
+  msg_out_status.data.size = 3;
+  msg_out_status.data.capacity = 4;
+
+  msg_in_axis.data.data = data_in_axis;
+  msg_in_axis.data.size = 3;
+  msg_in_axis.data.capacity = 4;
+  
 }
 
 void loop() 
 {
-  delay(10);
-  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
+  // delay(10);
+  // RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10)));
+  rcl_ret_t ret = rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
+  if(ret == RCL_RET_TIMEOUT)
+  {
+    log_info(String("Executor timeout"));
+  }
+  else if(ret == RCL_RET_ERROR)
+  {
+    log_info(String("Executor error"));
+  }
+  //else ok
+  // RCSOFTCHECK(rclc_executor_spin(&executor));
 }
