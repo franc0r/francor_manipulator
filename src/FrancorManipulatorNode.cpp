@@ -125,6 +125,11 @@ void FrancorManipulatorNode::timer_loop_callback()
 
   if(_mode == ENM_MODE::AXIS)
   {
+    if(_selected_mode == ENM_MODE::INVERSE)
+    {
+      this->set_mode(ENM_MODE::INVERSE);
+      return;
+    }
     //publish pos to base and head
     _desired_base_axis_pos.axis_0 += _params.angle_increment_speed * _last_cmd_axis_speed->joint_0;
     _desired_base_axis_pos.axis_1 += _params.angle_increment_speed * _last_cmd_axis_speed->joint_1;
@@ -134,7 +139,13 @@ void FrancorManipulatorNode::timer_loop_callback()
     _desired_base_axis_pos.axis_1 = constrain(_desired_base_axis_pos.axis_1, _SERVO_MAX_RAD * -1, _SERVO_MAX_RAD);
     _desired_base_axis_pos.axis_2 = constrain(_desired_base_axis_pos.axis_2, _SERVO_MAX_RAD * -1, _SERVO_MAX_RAD);
 
+    //compute forward kinematics
+    auto pos_tcp = ManipulatorSimpleInverse::compute2DForward(_desired_base_axis_pos.axis_1, _desired_base_axis_pos.axis_2);
+    RCLCPP_INFO(this->get_logger(), "pos_tcp: %f, %f", pos_tcp.x, pos_tcp.z);
 
+    // dummy inverse:
+    auto inverse = ManipulatorSimpleInverse::compute2DInverse(pos_tcp.x, pos_tcp.z);
+    RCLCPP_INFO(this->get_logger(), "inverse: %f, %f", inverse.x, inverse.z);
 
     // RCLCPP_INFO(this->get_logger(), "axis0_desired: %f, increment: %f, speed_cmd: %f", (float)_desired_base_axis_pos.axis_0, (float)_params.angle_increment_speed, (float)_last_cmd_axis_speed->joint_0);
     // RCLCPP_INFO(this->get_logger(), "axis1_desired: %f, increment: %f, speed_cmd: %f", (float)_desired_base_axis_pos.axis_1, (float)_params.angle_increment_speed, (float)_last_cmd_axis_speed->joint_1);
@@ -148,6 +159,61 @@ void FrancorManipulatorNode::timer_loop_callback()
 
   if(_mode == ENM_MODE::INVERSE)
   {
+    if(_selected_mode == ENM_MODE::AXIS)
+    {
+      this->set_mode(ENM_MODE::AXIS);
+      return;
+    } 
+
+
+    //manipulate desierd _inverse_pos
+    
+    const double l0 = 0.38;
+    const double l1 = 0.245;
+
+    const double l_all = (l0 + l1) * 0.95;
+
+    double x_diff = _params.angle_increment_speed * 0.1 * _last_cmd_inverse_speed->x;
+    double z_diff = _params.angle_increment_speed * 0.1 * _last_cmd_inverse_speed->z;
+
+    Eigen::Vector2d tmp_pos(_desired_inverse_pos.x + x_diff, _desired_inverse_pos.z + z_diff);
+
+    if(tmp_pos.norm() < l_all)
+    {
+      _desired_inverse_pos.x += x_diff;
+      // _desired_inverse_pos.y += _params.angle_increment_speed * _last_cmd_inverse_speed->y;
+      _desired_inverse_pos.z += z_diff;
+    }
+    else 
+    {
+      RCLCPP_INFO(this->get_logger(), "INVLAID POS");
+    }
+
+    // RCLCPP_INFO(this->get_logger(), "inverse_pos.x: %f, inverse.z: %f", (float)_desired_inverse_pos.x, (float)_desired_inverse_pos.z);
+
+    auto axis_angle = ManipulatorSimpleInverse::compute2DInverse(_desired_inverse_pos.x, _desired_inverse_pos.z);
+    _target_base_axis_pos.axis_0 = _desired_base_axis_pos.axis_0;
+
+    // if(axis_angle.x < -0.35 || axis_angle.x > 1.55 ||
+    //    axis_angle.z < -0.65 || axis_angle.z > 2.0)
+    // {//revert x and z diff if new angles are grater
+    //   _desired_inverse_pos.x -= x_diff;
+    //   _desired_inverse_pos.y -= z_diff;
+    //   return;
+    // }
+
+    
+    if(std::abs(axis_angle.x - _target_base_axis_pos.axis_1) > 0.4 ||
+       std::abs(axis_angle.z - _target_base_axis_pos.axis_2) > 0.4)
+    {
+      RCLCPP_INFO(this->get_logger(), "angle to much stop inverse stuff");
+      return;
+    }
+
+    _target_base_axis_pos.axis_1 = FrancorManipulatorNode::constrain(axis_angle.x, -0.4, 1.6);
+    _target_base_axis_pos.axis_2 = FrancorManipulatorNode::constrain(axis_angle.z, -0.7, 2.2);
+
+    this->move_base_to(_target_base_axis_pos, 0.5);
     //publish inversed calculated pos to base  and passing head speed commands as usual
     this->send_pos_to_head(Manipulator_head_axis<francor::base::AnglePiToPi>(*_last_cmd_axis_speed));
   }
@@ -156,7 +222,7 @@ void FrancorManipulatorNode::timer_loop_callback()
   {
     //send target pos command untill rdy and set selected mode afterwards
       
-    if(this->move_base_to(_params.base_pos_active, _params.homing_speed))
+    if(this->move_base_to(_params.base_pos_active, _params.homing_speed, true))
     {//arrrived
       this->set_mode(_selected_mode);
     }
@@ -183,8 +249,9 @@ void FrancorManipulatorNode::sub_cmd_axis_speed_callback(const francor_msgs::msg
 
 void FrancorManipulatorNode::sub_cmd_inverse_callback(const geometry_msgs::msg::Vector3::SharedPtr msg)
 {
-  (void)msg;
+  // (void)msg;
   // RCLCPP_INFO(_logger, "sub_cmd_inverse_callback");
+  _last_cmd_inverse_speed = msg;
 }
 
 //from firmware

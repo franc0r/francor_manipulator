@@ -18,9 +18,9 @@ def generate_launch_description():
                                   namespace='',
                                   executable='francor_manipulator_node',
                                   name='francor_manipulator_node',
-                                  output='log',
+                                  output='screen',
                                   parameters=[],
-                                  arguments=['--ros-args', '--log-level', 'fatal'],
+                                  # arguments=['--ros-args', '--log-level', 'info'],
                                   remappings=[
                                     #pub
                                     # ('/cmd_vel', '/francor_frank_base/cmd_vel'),

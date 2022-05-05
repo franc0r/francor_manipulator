@@ -18,6 +18,8 @@
 
 #include <francor_base/angle.h>
 
+#include "francor_manipulator/ManipulatorSimpleInverse.hpp"
+
 template<typename T>
 struct Manipulator_base_axis
 {
@@ -130,23 +132,61 @@ private: //functions
 
     if(simultaneously)
     {
+      bool rdy = true;
+      if(std::abs(diff_0) > _params.angle_increment_speed * 1.1)
+      {//axis 0
+        _desired_base_axis_pos.axis_0 += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_0);
+        rdy = false;
+      }
+      else
+      {
+        _desired_base_axis_pos.axis_0 = t_pos.axis_0;
+      }
+
+      if(std::abs(diff_1) > _params.angle_increment_speed * 1.1)
+      {//home axis1
+        _desired_base_axis_pos.axis_1 += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_1);
+        rdy = false;
+      }
+      else
+      {
+        _desired_base_axis_pos.axis_1 = t_pos.axis_1;
+      }
+      if(std::abs(diff_2) > _params.angle_increment_speed * 1.1)
+      {//home axis2
+        _desired_base_axis_pos.axis_2 += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_2);
+        rdy = false;
+      }
+      else
+      {
+        _desired_base_axis_pos.axis_2 = t_pos.axis_2;
+      }
+
+      if(rdy)
+      {
+        _desired_base_axis_pos.axis_0 = t_pos.axis_0;
+        _desired_base_axis_pos.axis_1 = t_pos.axis_1;
+        _desired_base_axis_pos.axis_2 = t_pos.axis_2;
+        this->send_pos_to_base(_desired_base_axis_pos);
+        return true;
+      }
     }
     else
     {
       if(std::abs(diff_0) > _params.angle_increment_speed * 1.1)
       {//axis 0
-        RCLCPP_INFO(this->get_logger(), "moving asis0");
+        // RCLCPP_INFO(this->get_logger(), "moving asis0");
         _desired_base_axis_pos.axis_0 += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_0);
       }
       else if(std::abs(diff_1) > _params.angle_increment_speed * 1.1)
       {//home axis1
-        RCLCPP_INFO(this->get_logger(), "moving asis1");
+        // RCLCPP_INFO(this->get_logger(), "moving asis1");
         _desired_base_axis_pos.axis_0 = t_pos.axis_0;
         _desired_base_axis_pos.axis_1 += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_1);
       }
       else if(std::abs(diff_2) > _params.angle_increment_speed * 1.1)
       {//home axis2
-        RCLCPP_INFO(this->get_logger(), "moving asis2");
+        // RCLCPP_INFO(this->get_logger(), "moving asis2");
         _desired_base_axis_pos.axis_0 = t_pos.axis_0;
         _desired_base_axis_pos.axis_1 = t_pos.axis_1;
         _desired_base_axis_pos.axis_2 += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_2);
@@ -234,29 +274,26 @@ private: //functions
         break;
       case ENM_MODE::AXIS:
         //set desired pos to curr pos
-        _desired_base_axis_pos.axis_0 = _base_axis_pos.axis_0;
-        _desired_base_axis_pos.axis_1 = _base_axis_pos.axis_1;
-        _desired_base_axis_pos.axis_2 = _base_axis_pos.axis_2;
-        RCLCPP_INFO(this->get_logger(), "############## AXIS MODE ##############");
-        RCLCPP_INFO(this->get_logger(), "axis0: %f, axis1: %f, axis2: %f", (float)_desired_base_axis_pos.axis_0, (float)_desired_base_axis_pos.axis_1, (float)_desired_base_axis_pos.axis_2);
+        _desired_base_axis_pos = _base_axis_pos;
+        // RCLCPP_INFO(this->get_logger(), "############## AXIS MODE ##############");
+        // RCLCPP_INFO(this->get_logger(), "axis0: %f, axis1: %f, axis2: %f", (float)_desired_base_axis_pos.axis_0, (float)_desired_base_axis_pos.axis_1, (float)_desired_base_axis_pos.axis_2);
         break;
       case ENM_MODE::INVERSE:
-        //set desired pos to curr pos
-        _desired_base_axis_pos.axis_0 = _base_axis_pos.axis_0;
-        _desired_base_axis_pos.axis_1 = _base_axis_pos.axis_1;
-        _desired_base_axis_pos.axis_2 = _base_axis_pos.axis_2;
-        break;
+        {
+          //set desired pos to curr pos
+          _desired_base_axis_pos = _base_axis_pos;
+          _target_base_axis_pos = _base_axis_pos;
+          //init desired pos
+          _desired_inverse_pos = ManipulatorSimpleInverse::compute2DForward(_desired_base_axis_pos.axis_1, _desired_base_axis_pos.axis_2);
+          break;
+        }
       case ENM_MODE::IS_HOMING:
         //set desired pos to curr pos
-        _desired_base_axis_pos.axis_0 = _base_axis_pos.axis_0;
-        _desired_base_axis_pos.axis_1 = _base_axis_pos.axis_1;
-        _desired_base_axis_pos.axis_2 = _base_axis_pos.axis_2;
+        _desired_base_axis_pos = _base_axis_pos;
         break;
       case ENM_MODE::IS_ACTIVATING:
         //set desired pos to curr pos
-        _desired_base_axis_pos.axis_0 = _base_axis_pos.axis_0;
-        _desired_base_axis_pos.axis_1 = _base_axis_pos.axis_1;
-        _desired_base_axis_pos.axis_2 = _base_axis_pos.axis_2;
+        _desired_base_axis_pos = _base_axis_pos;
         break;
       default:
         break;
@@ -340,17 +377,17 @@ private: //functions
   {
     if((_clock->now() - _base_axis_time_last_pos.axis_0).seconds() > 0.5)
     {
-      RCLCPP_INFO(this->get_logger(), "base_axis_0: no pos TIMEOUT");
+      // RCLCPP_INFO(this->get_logger(), "base_axis_0: no pos TIMEOUT");
       _base_axis_got_pos.axis_0 = false;
     }
     if((_clock->now() - _base_axis_time_last_pos.axis_1).seconds() > 0.5)
     {
-      RCLCPP_INFO(this->get_logger(), "base_axis_1: no pos TIMEOUT");
+      // RCLCPP_INFO(this->get_logger(), "base_axis_1: no pos TIMEOUT");
       _base_axis_got_pos.axis_1 = false;
     }
     if((_clock->now() - _base_axis_time_last_pos.axis_2).seconds() > 0.5)
     {
-      RCLCPP_INFO(this->get_logger(), "base_axis_2: no pos TIMEOUT");
+      // RCLCPP_INFO(this->get_logger(), "base_axis_2: no pos TIMEOUT");
       _base_axis_got_pos.axis_2 = false;
     }
   }
@@ -366,8 +403,8 @@ private: //data
     double rate_loop = 20;
     double rate_heartbeat = 1;
 
-    Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_standby = {0, 2.35, -1.5};
-    Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_active  = {0.0, 1.5, -0.5};
+    Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_standby = {0.0, 2.35, -0.72};
+    Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_active  = {0.0, 1.5, 0.25};
     Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_standby = {0, 0, 0};
     Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_active  = {0, 0, 0};
 
@@ -432,7 +469,10 @@ private: //data
   Manipulator_base_axis<francor::base::AnglePiToPi> _desired_base_axis_pos = {0.0, 0.0, 0.0};
   Manipulator_base_axis<francor::base::AnglePiToPi> _target_base_axis_pos = {0.0, 0.0, 0.0};
 
+  Axis _desired_inverse_pos;
+
   francor_msgs::msg::ManipulatorCmd::SharedPtr _last_cmd_axis_speed;
+  geometry_msgs::msg::Vector3::SharedPtr _last_cmd_inverse_speed;
 
   ENM_MODE _mode  = ENM_MODE::IDLE;             //overall mode
   ENM_MODE _selected_mode = ENM_MODE::AXIS;     //axis or inverse mode

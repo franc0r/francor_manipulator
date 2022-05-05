@@ -78,6 +78,7 @@ public:
 
     _servo.attach(_pwm_pin);
     _enabled = true;
+    _had_blackout = false;
 
     return ret;
   }
@@ -97,6 +98,10 @@ public:
   {
     _has_power = digitalRead(_vin_pin) == HIGH ? true : false;
     _curr_pos  = analogRead(_ain_pin);
+    if(_was_active && !_has_power)
+    {
+      _had_blackout = true;
+    }
     if(_enabled)
     {
       _was_active = true;
@@ -131,7 +136,7 @@ public:
   {
     if(_has_power)
     {
-      if(_was_active)
+      if(_was_active && !_had_blackout)
       {
         return _target_pos;
       }
@@ -192,4 +197,5 @@ private:
   bool _enabled       = false;
   bool _has_power     = false;
   bool _was_active    = false;
+  bool _had_blackout  = false;
 };
