@@ -176,7 +176,13 @@ void FrancorManipulatorNode::timer_loop_callback()
     double x_diff = _params.angle_increment_speed * 0.1 * _last_cmd_inverse_speed->x;
     double z_diff = _params.angle_increment_speed * 0.1 * _last_cmd_inverse_speed->z;
 
-    Eigen::Vector2d tmp_pos(_desired_inverse_pos.x + x_diff, _desired_inverse_pos.z + z_diff);
+
+    _target_base_axis_pos.axis_0 =  _target_base_axis_pos.axis_0 + _params.angle_increment_speed * 0.5 * _last_cmd_inverse_speed->y;
+    
+    double x_extra_length = (_desired_inverse_pos.x / std::cos(_desired_base_axis_pos.axis_0)) - _desired_inverse_pos.x;
+
+    RCLCPP_INFO(this->get_logger(), "x_extra_length: %f", (float)x_extra_length);
+    Eigen::Vector2d tmp_pos(_desired_inverse_pos.x + x_diff + x_extra_length, _desired_inverse_pos.z + z_diff);
 
     if(tmp_pos.norm() < l_all)
     {
@@ -189,10 +195,13 @@ void FrancorManipulatorNode::timer_loop_callback()
       RCLCPP_INFO(this->get_logger(), "INVLAID POS");
     }
 
+
+
+
+
     // RCLCPP_INFO(this->get_logger(), "inverse_pos.x: %f, inverse.z: %f", (float)_desired_inverse_pos.x, (float)_desired_inverse_pos.z);
 
-    auto axis_angle = ManipulatorSimpleInverse::compute2DInverse(_desired_inverse_pos.x, _desired_inverse_pos.z);
-    _target_base_axis_pos.axis_0 = _desired_base_axis_pos.axis_0;
+    auto axis_angle = ManipulatorSimpleInverse::compute2DInverse(_desired_inverse_pos.x + x_extra_length, _desired_inverse_pos.z);
 
     // if(axis_angle.x < -0.35 || axis_angle.x > 1.55 ||
     //    axis_angle.z < -0.65 || axis_angle.z > 2.0)
