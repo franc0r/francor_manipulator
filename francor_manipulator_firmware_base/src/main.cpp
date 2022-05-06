@@ -45,7 +45,7 @@ rcl_subscription_t sub_heartbeat; //uint8
 rcl_subscription_t sub_enable; //uint8
 
 std_msgs__msg__Int32MultiArray msg_in_axis;
-int32_t data_in_axis[4];
+int32_t data_in_axis[5];
 std_msgs__msg__UInt8           msg_in_heartbeat; 
 std_msgs__msg__UInt8           msg_in_enable;
 
@@ -254,12 +254,12 @@ void sub_axis_callback(const void* msg_in)
 {
   // log_info(String("SetPos"));
   const std_msgs__msg__Int32MultiArray* msg = (const std_msgs__msg__Int32MultiArray*)msg_in;
-  if(msg->data.size != 3)
+  if(msg->data.size != 4)
   {
     log_info(String("Got wrong axis message"));
     return;
   }
-  g_man_base.setPos(msg->data.data[0], msg->data.data[1], msg->data.data[2], 1500);
+  g_man_base.setPos(msg->data.data[0], msg->data.data[1], msg->data.data[2], msg->data.data[3]);
 }
 
 void sub_enable_callback(const void* msg_in)
@@ -375,8 +375,8 @@ void setup() {
   msg_out_status.data.capacity = 4;
 
   msg_in_axis.data.data = data_in_axis;
-  msg_in_axis.data.size = 3;
-  msg_in_axis.data.capacity = 4;
+  msg_in_axis.data.size = 4;
+  msg_in_axis.data.capacity = 5;
   
 }
 

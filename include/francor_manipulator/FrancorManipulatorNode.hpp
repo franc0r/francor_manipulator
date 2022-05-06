@@ -90,6 +90,7 @@ private: //functions
     msg.data.push_back(this->rad_to_servo_pos(pos.axis_0, 0));
     msg.data.push_back(this->rad_to_servo_pos(pos.axis_1, 1));
     msg.data.push_back(this->rad_to_servo_pos(pos.axis_2, 2));
+    msg.data.push_back(_gripper_pos);
     _pub_set_pos_axis->publish(msg);
   }
 
@@ -202,6 +203,12 @@ private: //functions
     }
     this->send_pos_to_base(_desired_base_axis_pos);
     return false;
+  }
+
+  void set_gripper_speed(const double speed)
+  {
+    _gripper_pos += static_cast<int32_t>(std::round(100.0 * speed));
+    _gripper_pos = static_cast<int32_t>(FrancorManipulatorNode::constrain(_gripper_pos, 500.0, 2300.0)); //todo find min max value!!!
   }
 
   //subs
@@ -470,6 +477,8 @@ private: //data
   Manipulator_base_axis<francor::base::AnglePiToPi> _target_base_axis_pos = {0.0, 0.0, 0.0};
 
   Axis _desired_inverse_pos;
+
+  int32_t _gripper_pos = 1500;
 
   francor_msgs::msg::ManipulatorCmd::SharedPtr _last_cmd_axis_speed;
   geometry_msgs::msg::Vector3::SharedPtr _last_cmd_inverse_speed;

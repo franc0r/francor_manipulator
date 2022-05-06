@@ -150,11 +150,11 @@ void FrancorManipulatorNode::timer_loop_callback()
     // RCLCPP_INFO(this->get_logger(), "axis0_desired: %f, increment: %f, speed_cmd: %f", (float)_desired_base_axis_pos.axis_0, (float)_params.angle_increment_speed, (float)_last_cmd_axis_speed->joint_0);
     // RCLCPP_INFO(this->get_logger(), "axis1_desired: %f, increment: %f, speed_cmd: %f", (float)_desired_base_axis_pos.axis_1, (float)_params.angle_increment_speed, (float)_last_cmd_axis_speed->joint_1);
     // RCLCPP_INFO(this->get_logger(), "axis2_desired: %f, increment: %f, speed_cmd: %f", (float)_desired_base_axis_pos.axis_2, (float)_params.angle_increment_speed, (float)_last_cmd_axis_speed->joint_2);
-
+    this->set_gripper_speed(_last_cmd_axis_speed->head_gripper);
     this->send_pos_to_base(_desired_base_axis_pos);
 
     //send pos to head
-    this->send_pos_to_head(Manipulator_head_axis<francor::base::AnglePiToPi>(*_last_cmd_axis_speed));
+    this->send_speed_to_head(Manipulator_head_axis<double>(*_last_cmd_axis_speed));
   }
 
   if(_mode == ENM_MODE::INVERSE)
@@ -222,9 +222,10 @@ void FrancorManipulatorNode::timer_loop_callback()
     _target_base_axis_pos.axis_1 = FrancorManipulatorNode::constrain(axis_angle.x, -0.4, 1.6);
     _target_base_axis_pos.axis_2 = FrancorManipulatorNode::constrain(axis_angle.z, -0.7, 2.2);
 
+    this->set_gripper_speed(_last_cmd_axis_speed->head_gripper);
     this->move_base_to(_target_base_axis_pos, 0.5);
     //publish inversed calculated pos to base  and passing head speed commands as usual
-    this->send_pos_to_head(Manipulator_head_axis<francor::base::AnglePiToPi>(*_last_cmd_axis_speed));
+    this->send_speed_to_head(Manipulator_head_axis<double>(*_last_cmd_axis_speed));
   }
 
   if(_mode == ENM_MODE::IS_ACTIVATING)
