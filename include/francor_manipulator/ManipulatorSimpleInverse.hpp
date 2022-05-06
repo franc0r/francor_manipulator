@@ -27,24 +27,24 @@ public:
     const double l1 = 0.245;
 
     double ang_x = x + 0.6;
-    std::cout << "ang_x: " << ang_x << std::endl;
+    // std::cout << "ang_x: " << ang_x << std::endl;
     double ang_z = (M_PI - (z + M_PI_4)) * -1;
-    std::cout << "ang_z: " << ang_z << std::endl;
+    // std::cout << "ang_z: " << ang_z << std::endl;
 
 
 
     axis.x = l0 * std::cos(ang_x) + l1 * std::cos(ang_x + ang_z);
     axis.z = l0 * std::sin(ang_x) + l1 * std::sin(ang_x + ang_z);
 
-    std::cout << "axis.x: " << axis.x << std::endl;
-    std::cout << "axis.z: " << axis.z << std::endl;
+    // std::cout << "axis.x: " << axis.x << std::endl;
+    // std::cout << "axis.z: " << axis.z << std::endl;
 
     //offset for arm
     return axis;
   }
   static Axis compute2DInverse(double x, double z)
   {
-    std::cout << "--------- 2d inverse -----------" << std::endl;
+    // std::cout << "--------- 2d inverse -----------" << std::endl;
     Axis axis;
     const double l0 = 0.38;
     const double l1 = 0.245;
@@ -66,13 +66,13 @@ public:
 
     axis.x = alpha + phi_p;// + 0.6; //todo check
     axis.z = gamma; // - M_PI_2; //todo check
-    std::cout << "axis.x: " << axis.x << std::endl;
-    std::cout << "axis.z: " << axis.z << std::endl;
-    std::cout << "-- transformed --" << std::endl;
+    // std::cout << "axis.x: " << axis.x << std::endl;
+    // std::cout << "axis.z: " << axis.z << std::endl;
+    // std::cout << "-- transformed --" << std::endl;
     axis.x -= 0.6;
     axis.z -= M_PI_4;
-    std::cout << "axis.x: " << axis.x << std::endl;
-    std::cout << "axis.z: " << axis.z << std::endl;
+    // std::cout << "axis.x: " << axis.x << std::endl;
+    // std::cout << "axis.z: " << axis.z << std::endl;
     return axis;
   }
 };

@@ -139,13 +139,13 @@ void FrancorManipulatorNode::timer_loop_callback()
     _desired_base_axis_pos.axis_1 = constrain(_desired_base_axis_pos.axis_1, _SERVO_MAX_RAD * -1, _SERVO_MAX_RAD);
     _desired_base_axis_pos.axis_2 = constrain(_desired_base_axis_pos.axis_2, _SERVO_MAX_RAD * -1, _SERVO_MAX_RAD);
 
-    //compute forward kinematics
-    auto pos_tcp = ManipulatorSimpleInverse::compute2DForward(_desired_base_axis_pos.axis_1, _desired_base_axis_pos.axis_2);
-    RCLCPP_INFO(this->get_logger(), "pos_tcp: %f, %f", pos_tcp.x, pos_tcp.z);
+    // //compute forward kinematics
+    // auto pos_tcp = ManipulatorSimpleInverse::compute2DForward(_desired_base_axis_pos.axis_1, _desired_base_axis_pos.axis_2);
+    // RCLCPP_INFO(this->get_logger(), "pos_tcp: %f, %f", pos_tcp.x, pos_tcp.z);
 
-    // dummy inverse:
-    auto inverse = ManipulatorSimpleInverse::compute2DInverse(pos_tcp.x, pos_tcp.z);
-    RCLCPP_INFO(this->get_logger(), "inverse: %f, %f", inverse.x, inverse.z);
+    // // dummy inverse:
+    // auto inverse = ManipulatorSimpleInverse::compute2DInverse(pos_tcp.x, pos_tcp.z);
+    // RCLCPP_INFO(this->get_logger(), "inverse: %f, %f", inverse.x, inverse.z);
 
     // RCLCPP_INFO(this->get_logger(), "axis0_desired: %f, increment: %f, speed_cmd: %f", (float)_desired_base_axis_pos.axis_0, (float)_params.angle_increment_speed, (float)_last_cmd_axis_speed->joint_0);
     // RCLCPP_INFO(this->get_logger(), "axis1_desired: %f, increment: %f, speed_cmd: %f", (float)_desired_base_axis_pos.axis_1, (float)_params.angle_increment_speed, (float)_last_cmd_axis_speed->joint_1);
@@ -181,7 +181,7 @@ void FrancorManipulatorNode::timer_loop_callback()
     
     double x_extra_length = (_desired_inverse_pos.x / std::cos(_desired_base_axis_pos.axis_0)) - _desired_inverse_pos.x;
 
-    RCLCPP_INFO(this->get_logger(), "x_extra_length: %f", (float)x_extra_length);
+    // RCLCPP_INFO(this->get_logger(), "x_extra_length: %f", (float)x_extra_length);
     Eigen::Vector2d tmp_pos(_desired_inverse_pos.x + x_diff + x_extra_length, _desired_inverse_pos.z + z_diff);
 
     if(tmp_pos.norm() < l_all)
