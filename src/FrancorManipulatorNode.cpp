@@ -199,6 +199,7 @@ void FrancorManipulatorNode::timer_loop_callback()
     else 
     {
       RCLCPP_INFO(this->get_logger(), "INVLAID POS");
+      return;
     }
 
 
