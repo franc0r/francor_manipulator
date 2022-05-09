@@ -491,8 +491,8 @@ private: //data
     Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_standby = {0, 1.68, -1.64};
     Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_active  = {0, 1.6, 0};
 
-    double sh_safe_yaw = 0.0;
-    double sh_safe_pitch = 0.0;
+    double sh_safe_yaw = -1.65;
+    double sh_safe_pitch = 0.6;
 
     // double axis_tolerance_rad = 0.03;
     double homing_speed = 0.3;

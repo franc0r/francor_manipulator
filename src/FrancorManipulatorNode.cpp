@@ -34,8 +34,8 @@ FrancorManipulatorNode::FrancorManipulatorNode() : rclcpp::Node("francor_manipul
     _pub_head_speed_pan   = this->create_publisher<std_msgs::msg::Float64>("servo_lx16a/arm_pan/speed", 10);
     _pub_head_speed_tilt  = this->create_publisher<std_msgs::msg::Float64>("servo_lx16a/arm_tilt/speed", 10);
     _pub_head_speed_roll  = this->create_publisher<std_msgs::msg::Float64>("servo_lx16a/arm_roll/speed", 10);
-    _pub_sh_pitch         = this->create_publisher<std_msgs::msg::Float64>("todo", 10);
-    _pub_sh_yaw           = this->create_publisher<std_msgs::msg::Float64>("todo", 10);
+    _pub_sh_pitch         = this->create_publisher<std_msgs::msg::Float64>("/servo_lx16a/sensor_head_pitch/pos", 10);
+    _pub_sh_yaw           = this->create_publisher<std_msgs::msg::Float64>("/servo_lx16a/sensor_head_yaw/pos", 10);
     _pub_status       = this->create_publisher<std_msgs::msg::String>("manipulator/status", 10);
     _pub_status_pos   = this->create_publisher<francor_msgs::msg::ManipulatorCmd>("manipulator/status/pos", 10);
     //pub firmware
