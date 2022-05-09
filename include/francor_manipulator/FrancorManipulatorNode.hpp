@@ -205,6 +205,46 @@ private: //functions
     return false;
   }
 
+  bool move_head_to(const Manipulator_head_axis<francor::base::AnglePiToPi>& t_pos, const double speed, const bool simultaneously = false)
+  {
+    double diff_pan  = t_pos.pan  - _desired_head_axis_pos.pan;
+    double diff_tilt = t_pos.tilt - _desired_head_axis_pos.tilt;
+    double diff_roll = t_pos.roll - _desired_head_axis_pos.roll;
+
+    if(simultaneously)
+    {
+      
+
+    }
+    else
+    {
+      if(std::abs(diff_pan) > _params.angle_increment_speed * 1.1)
+      {//pan
+        _desired_head_axis_pos.pan += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_pan);
+      }
+      if(std::abs(diff_tilt) > _params.angle_increment_speed * 1.1)
+      {
+        _desired_head_axis_pos.pan = t_pos.pan;
+        _desired_head_axis_pos.tilt += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_tilt);
+      }
+      if(std::abs(diff_roll) > _params.angle_increment_speed * 1.1)
+      {
+        _desired_head_axis_pos.pan = t_pos.pan;
+        _desired_head_axis_pos.tilt = t_pos.tilt;
+        _desired_head_axis_pos.roll += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_roll);
+      }
+      else
+      {
+        _desired_head_axis_pos.pan = t_pos.pan;
+        _desired_head_axis_pos.tilt = t_pos.tilt;
+        _desired_head_axis_pos.roll = t_pos.roll;
+        return true;
+      }
+    }
+    return false;
+  }
+
+
   void set_gripper_speed(const double speed)
   {
     _gripper_pos += static_cast<int32_t>(std::round(100.0 * speed));
@@ -413,7 +453,7 @@ private: //data
     Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_standby = {0.0, 2.35, -0.72};
     Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_active  = {0.0, 1.5, 0.25};
     Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_standby = {0, 0, 0};
-    Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_active  = {0, 0, 0};
+    Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_active  = {0, 1.6, 0};
 
     // double axis_tolerance_rad = 0.03;
     double homing_speed = 0.3;
@@ -475,6 +515,8 @@ private: //data
   //commands
   Manipulator_base_axis<francor::base::AnglePiToPi> _desired_base_axis_pos = {0.0, 0.0, 0.0};
   Manipulator_base_axis<francor::base::AnglePiToPi> _target_base_axis_pos = {0.0, 0.0, 0.0};
+
+  Manipulator_head_axis<francor::base::AnglePiToPi> _desired_head_axis_pos = {0.0, 1.6, 0.0};
 
   Axis _desired_inverse_pos;
 

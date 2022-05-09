@@ -231,7 +231,12 @@ void FrancorManipulatorNode::timer_loop_callback()
   if(_mode == ENM_MODE::IS_ACTIVATING)
   {
     //send target pos command untill rdy and set selected mode afterwards
-      
+    _gripper_pos = 500;
+    if(!this->move_head_to(_params.head_pos_active, 0.5))
+    {
+      return;
+    }
+
     if(this->move_base_to(_params.base_pos_active, _params.homing_speed, true))
     {//arrrived
       this->set_mode(_selected_mode);
