@@ -35,7 +35,7 @@ def generate_launch_description():
   servo_lx16a = Node(package='francor_servo_lx16a',
                      namespace='',
                      executable='francor_servo_lx16a_node',
-                     name='francor_servo_lx16a_node',
+                     name='francor_servo_lx16a_arm_node',
                      output='screen',
                     #  parameters=[config],
                      parameters=[{

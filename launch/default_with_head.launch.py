@@ -35,7 +35,7 @@ def generate_launch_description():
   servo_lx16a = Node(package='francor_servo_lx16a',
                      namespace='',
                      executable='francor_servo_lx16a_node',
-                     name='francor_servo_lx16a_node',
+                     name='francor_servo_lx16a_arm_node',
                      output='screen',
                     #  parameters=[config],
                      parameters=[{
@@ -62,8 +62,28 @@ def generate_launch_description():
                          arguments=["serial", "--dev", "/dev/ttyACM0", "--baudrate", "57600"]
                          )
 
+
+  cam_front_node = Node(
+            package='usb_cam',
+            executable='usb_cam_node_exe',
+            name='usb_cam_node',
+            namespace='camera/manipulator',
+            parameters=[
+              {"video_device": "video0"},
+              {"image_width": 640},
+              {"image_height": 480},
+              {"framerate": 30.0},	
+              {"pixel_format": "mjpeg"}, #Possible values are mjpeg (default), yuyv(ps3 cam ...), uyvy
+              {"camera_frame_id": "cam_manipulator"},
+              {"camera_info_url": "" },
+              {"camera_name": "cam_manipulator"},
+              {"autoexposure": False}
+            ]
+    )
+
   return LaunchDescription([
     francor_manipulator_node,
     servo_lx16a,
-    micro_ros_agent
+    micro_ros_agent,
+    cam_front_node
   ])

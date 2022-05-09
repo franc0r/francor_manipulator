@@ -12,6 +12,7 @@
 #include <geometry_msgs/msg/vector3.hpp>
 
 #include <francor_msgs/msg/manipulator_cmd.hpp>
+#include <francor_msgs/msg/servo_lx16a.hpp>
 
 #include <std_srvs/srv/empty.hpp>
 
@@ -19,6 +20,7 @@
 #include <francor_base/angle.h>
 
 #include "francor_manipulator/ManipulatorSimpleInverse.hpp"
+
 
 template<typename T>
 struct Manipulator_base_axis
@@ -114,6 +116,15 @@ private: //functions
     _pub_head_speed_tilt->publish(msg);
     msg.data = speed.roll;
     _pub_head_speed_roll->publish(msg);
+  }
+
+  void send_pos_to_sh(const double pitch, const double yaw) const
+  {
+    std_msgs::msg::Float64 msg;
+    msg.data = pitch;
+    _pub_sh_pitch->publish(msg);
+    msg.data = yaw;
+    _pub_sh_yaw->publish(msg);
   }
 
   /**
@@ -218,16 +229,16 @@ private: //functions
     }
     else
     {
-      if(std::abs(diff_pan) > _params.angle_increment_speed * 1.1)
+      if(std::abs(diff_pan) > _params.angle_increment_speed * 2.1)
       {//pan
         _desired_head_axis_pos.pan += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_pan);
       }
-      if(std::abs(diff_tilt) > _params.angle_increment_speed * 1.1)
+      else if(std::abs(diff_tilt) > _params.angle_increment_speed * 2.1)
       {
         _desired_head_axis_pos.pan = t_pos.pan;
         _desired_head_axis_pos.tilt += _params.angle_increment_speed * speed * FrancorManipulatorNode::sgn(diff_tilt);
       }
-      if(std::abs(diff_roll) > _params.angle_increment_speed * 1.1)
+      else if(std::abs(diff_roll) > _params.angle_increment_speed * 2.1)
       {
         _desired_head_axis_pos.pan = t_pos.pan;
         _desired_head_axis_pos.tilt = t_pos.tilt;
@@ -238,9 +249,14 @@ private: //functions
         _desired_head_axis_pos.pan = t_pos.pan;
         _desired_head_axis_pos.tilt = t_pos.tilt;
         _desired_head_axis_pos.roll = t_pos.roll;
+        this->send_pos_to_head(_desired_head_axis_pos);
+        // this->send_speed_to_head(_desired_head_axis_pos);
+        // RCLCPP_INFO(this->get_logger(), "+++++++++++++++head pos reached");
         return true;
       }
     }
+    // RCLCPP_INFO(this->get_logger(), "head pos not reached");
+    this->send_pos_to_head(_desired_head_axis_pos);
     return false;
   }
 
@@ -257,6 +273,24 @@ private: //functions
   //sub firmware_base
   void sub_pos_axis_callback(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
   void sub_state_axis_callback(const std_msgs::msg::UInt8MultiArray::SharedPtr msg);
+
+  void sub_pan_callback(const francor_msgs::msg::ServoLx16a::SharedPtr msg)
+  {
+    // RCLCPP_INFO(this->get_logger(), "PAN: %f", msg->pos);
+    _last_head_pos.pan = msg->pos;
+  }
+
+  void sub_tilt_callback(const francor_msgs::msg::ServoLx16a::SharedPtr msg)
+  {
+    // RCLCPP_INFO(this->get_logger(), "TILT: %f", msg->pos);
+    _last_head_pos.tilt = msg->pos;
+  }
+
+  void sub_roll_callback(const francor_msgs::msg::ServoLx16a::SharedPtr msg)
+  {
+    // RCLCPP_INFO(this->get_logger(), "ROLL: %f", msg->pos);
+    _last_head_pos.roll = msg->pos;
+  }
 
   //srv callbacks
   void srv_set_mode_inverse_callback(const std_srvs::srv::Empty::Request::SharedPtr req, std_srvs::srv::Empty::Response::SharedPtr res);
@@ -337,10 +371,12 @@ private: //functions
       case ENM_MODE::IS_HOMING:
         //set desired pos to curr pos
         _desired_base_axis_pos = _base_axis_pos;
+        _desired_head_axis_pos = _last_head_pos;
         break;
       case ENM_MODE::IS_ACTIVATING:
         //set desired pos to curr pos
         _desired_base_axis_pos = _base_axis_pos;
+        _desired_head_axis_pos = _last_head_pos;
         break;
       default:
         break;
@@ -450,10 +486,13 @@ private: //data
     double rate_loop = 20;
     double rate_heartbeat = 1;
 
-    Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_standby = {0.0, 2.35, -0.72};
+    Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_standby = {0.0, 2.28, -0.7};
     Manipulator_base_axis<francor::base::AnglePiToPi> base_pos_active  = {0.0, 1.5, 0.25};
-    Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_standby = {0, 0, 0};
+    Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_standby = {0, 1.68, -1.64};
     Manipulator_head_axis<francor::base::AnglePiToPi> head_pos_active  = {0, 1.6, 0};
+
+    double sh_safe_yaw = 0.0;
+    double sh_safe_pitch = 0.0;
 
     // double axis_tolerance_rad = 0.03;
     double homing_speed = 0.3;
@@ -477,6 +516,8 @@ private: //data
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr         _pub_head_speed_pan;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr         _pub_head_speed_tilt;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr         _pub_head_speed_roll;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr         _pub_sh_pitch;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr         _pub_sh_yaw;
 
   //status pub
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr             _pub_status;
@@ -495,6 +536,11 @@ private: //data
   //fimware_subs
   rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr _sub_axis_pos;
   rclcpp::Subscription<std_msgs::msg::UInt8MultiArray>::SharedPtr _sub_axis_state;
+
+  //sub servo
+  rclcpp::Subscription<francor_msgs::msg::ServoLx16a>::SharedPtr _sub_head_pan;
+  rclcpp::Subscription<francor_msgs::msg::ServoLx16a>::SharedPtr _sub_head_tilt;
+  rclcpp::Subscription<francor_msgs::msg::ServoLx16a>::SharedPtr _sub_head_roll;
 
   //services
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr _srv_set_mode_inverse;
@@ -517,6 +563,7 @@ private: //data
   Manipulator_base_axis<francor::base::AnglePiToPi> _target_base_axis_pos = {0.0, 0.0, 0.0};
 
   Manipulator_head_axis<francor::base::AnglePiToPi> _desired_head_axis_pos = {0.0, 1.6, 0.0};
+  Manipulator_head_axis<francor::base::AnglePiToPi> _last_head_pos = {0.0, 0.0, 0.0};
 
   Axis _desired_inverse_pos;
 

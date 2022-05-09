@@ -34,6 +34,8 @@ FrancorManipulatorNode::FrancorManipulatorNode() : rclcpp::Node("francor_manipul
     _pub_head_speed_pan   = this->create_publisher<std_msgs::msg::Float64>("servo_lx16a/arm_pan/speed", 10);
     _pub_head_speed_tilt  = this->create_publisher<std_msgs::msg::Float64>("servo_lx16a/arm_tilt/speed", 10);
     _pub_head_speed_roll  = this->create_publisher<std_msgs::msg::Float64>("servo_lx16a/arm_roll/speed", 10);
+    _pub_sh_pitch         = this->create_publisher<std_msgs::msg::Float64>("todo", 10);
+    _pub_sh_yaw           = this->create_publisher<std_msgs::msg::Float64>("todo", 10);
     _pub_status       = this->create_publisher<std_msgs::msg::String>("manipulator/status", 10);
     _pub_status_pos   = this->create_publisher<francor_msgs::msg::ManipulatorCmd>("manipulator/status/pos", 10);
     //pub firmware
@@ -48,6 +50,10 @@ FrancorManipulatorNode::FrancorManipulatorNode() : rclcpp::Node("francor_manipul
     _sub_cmd_inverse_speed = this->create_subscription<geometry_msgs::msg::Vector3>("manipulator/speed/inverse", 10, std::bind(&FrancorManipulatorNode::sub_cmd_inverse_callback, this, std::placeholders::_1));
     _sub_axis_pos          = this->create_subscription<std_msgs::msg::Int32MultiArray>("manipulator/pos/axis", rclcpp::QoS(10).best_effort(), std::bind(&FrancorManipulatorNode::sub_pos_axis_callback, this, std::placeholders::_1));
     _sub_axis_state        = this->create_subscription<std_msgs::msg::UInt8MultiArray>("manipulator/pos/status", rclcpp::QoS(10).best_effort(), std::bind(&FrancorManipulatorNode::sub_state_axis_callback, this, std::placeholders::_1));
+
+    _sub_head_pan    = this->create_subscription<francor_msgs::msg::ServoLx16a>("/servo_lx16a/arm_pan/status", 10, std::bind(&FrancorManipulatorNode::sub_pan_callback, this, std::placeholders::_1));
+    _sub_head_tilt   = this->create_subscription<francor_msgs::msg::ServoLx16a>("/servo_lx16a/arm_tilt/status", 10, std::bind(&FrancorManipulatorNode::sub_tilt_callback, this, std::placeholders::_1));
+    _sub_head_roll   = this->create_subscription<francor_msgs::msg::ServoLx16a>("/servo_lx16a/arm_roll/status", 10, std::bind(&FrancorManipulatorNode::sub_roll_callback, this, std::placeholders::_1));
 
     //create srvs
     _srv_set_mode_inverse = this->create_service<std_srvs::srv::Empty>("manipulator/set/mode/inverse", std::bind(&FrancorManipulatorNode::srv_set_mode_inverse_callback, this, std::placeholders::_1, std::placeholders::_2));
@@ -231,14 +237,16 @@ void FrancorManipulatorNode::timer_loop_callback()
   if(_mode == ENM_MODE::IS_ACTIVATING)
   {
     //send target pos command untill rdy and set selected mode afterwards
-    _gripper_pos = 500;
-    if(!this->move_head_to(_params.head_pos_active, 0.5))
+    //send safe pos to sh
+    this->send_pos_to_sh(_params.sh_safe_pitch, _params.sh_safe_yaw);
+
+    if(!this->move_base_to(_params.base_pos_active, _params.homing_speed, true))
     {
       return;
     }
-
-    if(this->move_base_to(_params.base_pos_active, _params.homing_speed, true))
-    {//arrrived
+    _gripper_pos = 500;
+    if(this->move_head_to(_params.head_pos_active, 1.0, false))
+    {
       this->set_mode(_selected_mode);
     }
   
@@ -246,6 +254,14 @@ void FrancorManipulatorNode::timer_loop_callback()
 
   if(_mode == ENM_MODE::IS_HOMING)
   {
+    this->send_pos_to_sh(_params.sh_safe_pitch, _params.sh_safe_yaw);
+    if(!this->move_head_to(_params.head_pos_standby, 1.0, false))
+    {
+      return;
+    }
+
+    _gripper_pos = 2000;
+
     //send target pos command untill rdy and set standby mode afterwards
     if(this->move_base_to(_params.base_pos_standby, _params.homing_speed))
     {//arrrived
